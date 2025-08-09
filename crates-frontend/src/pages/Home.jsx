@@ -1,10 +1,12 @@
 import "./Home.css";
 import { useState } from "react";
+import { toast } from 'sonner';
 
 export default function Home() {
   const [form, setForm] = useState({
     username: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [formType, setFormType] = useState("login");
@@ -13,25 +15,60 @@ export default function Home() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const signup = (e) => {
+    e.preventDefault();
+    if (!form.username || !form.password) {
+      toast.error("Username and password are required");
+      console.log("Username and password are required");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      toast.error("Passwords do not match");
+      console.log("Passwords do not match");
+      return;
+    }
+    console.log("Sign up pressed:", form.username, form.password);
+  };
+
+  const login = (e) => {
+    e.preventDefault();
+    if (!form.username || !form.password) {
+      toast.error("Username and password are required");
+      console.log("Username and password are required");
+      return;
+    }
+    console.log("Login pressed:", form.username, form.password);
+  };
+
+  const switchForm = (e, type) => {
+    e.preventDefault();
+    setFormType(type);
+  };
+
   return (
     <div id="home">
       <div id="main">
         <div id="header">
           <h1>Crates</h1>
         </div>
+
         {formType === "login" && (
           <div className="form-container">
-            <form className="form">
+            <form id="login-form" onSubmit={login} className="form">
               <input
                 className="input-field"
                 type="text"
+                name="username"
                 placeholder="Username"
+                value={form.username}
                 onChange={handleChange}
               />
               <input
                 className="input-field"
                 type="password"
+                name="password"
                 placeholder="Password"
+                value={form.password}
                 onChange={handleChange}
               />
               <button className="button" type="submit">
@@ -39,7 +76,9 @@ export default function Home() {
               </button>
               <p className="text-center">
                 Don't have an account?{" "}
-                <a onClick={() => setFormType("signup")}>Sign up</a>
+                <a href="#" onClick={(e) => switchForm(e, "signup")}>
+                  Sign up
+                </a>
               </p>
             </form>
           </div>
@@ -47,23 +86,29 @@ export default function Home() {
 
         {formType === "signup" && (
           <div className="form-container">
-            <form className="form">
+            <form id="signup-form" onSubmit={signup} className="form">
               <input
                 className="input-field"
                 type="text"
+                name="username"
                 placeholder="Username"
+                value={form.username}
                 onChange={handleChange}
               />
               <input
                 className="input-field"
                 type="password"
+                name="password"
                 placeholder="Password"
+                value={form.password}
                 onChange={handleChange}
               />
               <input
                 className="input-field"
                 type="password"
+                name="confirmPassword"
                 placeholder="Confirm Password"
+                value={form.confirmPassword}
                 onChange={handleChange}
               />
               <button className="button" type="submit">
@@ -71,7 +116,9 @@ export default function Home() {
               </button>
               <p className="text-center">
                 Already have an account?{" "}
-                <a onClick={() => setFormType("login")}>Login</a>
+                <a href="#" onClick={(e) => switchForm(e, "login")}>
+                  Login
+                </a>
               </p>
             </form>
           </div>
