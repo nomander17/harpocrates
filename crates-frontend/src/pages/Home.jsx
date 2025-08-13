@@ -4,6 +4,27 @@ import { toast } from "sonner";
 import { API_URL } from "../config";
 import argon2 from "argon2-browser/dist/argon2-bundled.min.js";
 
+function uint8ArrayToHex(uint8Array) {
+  return Array.from(uint8Array)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function hexToUint8Array(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw "Invalid hexString";
+  }
+  const arrayBuffer = new Uint8Array(hexString.length / 2);
+  for (let i = 0; i < hexString.length; i += 2) {
+    const byteValue = parseInt(hexString.substr(i, 2), 16);
+    if (isNaN(byteValue)) {
+      throw "Invalid hexString";
+    }
+    arrayBuffer[i / 2] = byteValue;
+  }
+  return arrayBuffer;
+}
+
 export default function Home() {
   const [form, setForm] = useState({
     username: "",
@@ -29,8 +50,83 @@ export default function Home() {
       console.log("Passwords do not match");
       return;
     }
-    console.log("Sign up pressed:", form.username, form.password);
+    attemptSigup(form.username, form.password);
   };
+
+  async function attemptSigup(username, password) {
+    // generate salts
+    // generate encryption and auth hashes
+    // send salts + auth hash + username
+
+    let argon2_params = {
+      type: argon2.ArgonType.Argon2id,
+      time: 3,
+      mem: 65536,
+      hashLen: 28,
+      parallelism: 4,
+    };
+
+    try {
+      // try to get salt for user. if not found, we will know username is available
+      const res = await fetch(`${API_URL}/api/auth/salts?username=${username}`);
+      if (res.ok) {
+        toast.error("Username already used");
+        console.log("Username already used");
+        return;
+      } else if (res.status !== 404) {
+        const error = await res.json();
+        toast.error(error.message || "An error occurred. Please try again.");
+        console.error("Error checking username:", error);
+        return;
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error("Failed to connect to the server. Please try again later.");
+      return;
+    }
+
+    const auth_salt = generateSalt(16);
+    const encryption_salt = generateSalt(16);
+    const auth_hash = await generateHash(password, auth_salt, argon2_params);
+    const encryption_hash = await generateHash(
+      password,
+      encryption_salt,
+      argon2_params,
+    );
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: username,
+          auth_hash: auth_hash,
+          encryption_hash: encryption_hash,
+          auth_salt: uint8ArrayToHex(auth_salt),
+          encryption_salt: uint8ArrayToHex(encryption_salt),
+        }),
+      });
+      if (res.ok) {
+        toast.success("Account created successfully! Please log in.");
+        setFormType("login");
+      } else {
+        const error = await res.json();
+        toast.error(error.message || "Signup failed. Please try again.");
+        console.error("Signup failed:", error);
+      }
+    } catch (err) {
+      console.log(err);
+      toast.error("An error occurred during signup. Please try again.");
+    }
+  }
+
+  function generateSalt(byteLength = 16) {
+    const array = new Uint8Array(byteLength);
+    crypto.getRandomValues(array);
+    return array;
+  }
 
   const login = (e) => {
     e.preventDefault();
@@ -39,36 +135,58 @@ export default function Home() {
       console.log("Username and password are required");
       return;
     }
-    console.log("Login pressed:", form.username, form.password);
-    attemptLogin(form.password);
+    attemptLogin(form.username, form.password);
   };
 
-  async function attemptLogin(password) {
+  async function attemptLogin(username, password) {
     // fetch user salt
     // gen hash
     // send hash + user and attempt to establish session
     try {
-      const res = await fetch(`${API_URL}/api/auth/salts?email=user`);
-      const { auth_salt, encryption_salt } = await res.json();
+      const res = await fetch(`${API_URL}/api/auth/salts?username=${username}`);
+      if (!res.ok) {
+        toast.error("Invalid username or password.");
+        console.log("Failed to fetch salts for user.");
+        return;
+      }
+      const { auth_salt, _encryption_salt, argon2_params } = await res.json();
 
-      const userAuthHash = generateAuthenticationHash(password, auth_salt);
-      console.log(userAuthHash);
+      const auth_hash = await generateHash(
+        password,
+        hexToUint8Array(auth_salt),
+        argon2_params,
+      );
+      try {
+        const _res = await fetch(`${API_URL}/api/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: username,
+            password: auth_hash,
+          }),
+        });
+        // TODO
+      } catch (err) {
+        console.log(err);
+        toast.error("An error occurred during login. Please try again.");
+      }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to connect to the server. Please try again later.");
     }
-
-    // todo rest
   }
 
-  async function generateAuthenticationHash(password, auth_salt) {
+  async function generateHash(password, salt, argon2_params) {
     const hash = await argon2.hash({
       pass: password,
-      salt: auth_salt,
-      type: argon2.ArgonType.Argon2id,
-      time: 3,
-      mem: 4096,
-      hashLen: 32,
-      parallelism: 1,
+      salt: salt,
+      type: argon2_params.type,
+      time: argon2_params.time,
+      mem: argon2_params.mem,
+      hashLen: argon2_params.hashLen,
+      parallelism: argon2_params.parallelism,
     });
 
     console.log("Hash hex:", hash.hashHex);
