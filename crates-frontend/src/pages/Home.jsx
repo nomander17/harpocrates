@@ -25,6 +25,39 @@ function hexToUint8Array(hexString) {
   return arrayBuffer;
 }
 
+const validatePasswordStrength = (password) => {
+  if (!password || password.length < 8) {
+    return {
+      isValid: false,
+      message: "Password must be at least 8 characters",
+    };
+  }
+
+  // Check for each character type
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  // Count how many requirements are met
+  const requirementsMet = [
+    hasUppercase,
+    hasLowercase,
+    hasNumber,
+    hasSpecialChar,
+  ].filter(Boolean).length;
+
+  if (requirementsMet < 3) {
+    return {
+      isValid: false,
+      message:
+        "Password must contain any 3: uppercase, lowercase, numbers, special characters.",
+    };
+  }
+
+  return { isValid: true, message: "" };
+};
+
 export default function Home() {
   const [form, setForm] = useState({
     username: "",
@@ -40,16 +73,27 @@ export default function Home() {
 
   const signup = (e) => {
     e.preventDefault();
+    const passwordWarning = document.getElementById("password-warning");
     if (!form.username || !form.password) {
       toast.error("Username and password are required");
-      console.log("Username and password are required");
       return;
     }
+
+    const passwordValidation = validatePasswordStrength(form.password);
+    if (!passwordValidation.isValid) {
+      toast.error("Weak password");
+      passwordWarning.innerText = passwordValidation.message;
+      return;
+    }
+
+    // Clear the warning if password is valid
+    passwordWarning.innerText = "";
+
     if (form.password !== form.confirmPassword) {
       toast.error("Passwords do not match");
-      console.log("Passwords do not match");
       return;
     }
+
     attemptSigup(form.username, form.password);
   };
 
@@ -168,6 +212,7 @@ export default function Home() {
           }),
         });
         // TODO
+        console.log("Login successful");
       } catch (err) {
         console.log(err);
         toast.error("An error occurred during login. Please try again.");
@@ -275,6 +320,7 @@ export default function Home() {
                   Login
                 </a>
               </p>
+              <p id="password-warning" className="text-center"></p>
             </form>
           </div>
         )}
