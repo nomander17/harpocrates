@@ -1,7 +1,7 @@
 // App.jsx
 import { Routes, Route, Link } from "react-router-dom";
 import Home from "./pages/Home.jsx";
-import About from "./pages/About.jsx";
+import Secrets from "./pages/Secrets.jsx";
 import { Toaster } from 'sonner';
 
 export default function App() {
@@ -9,7 +9,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
+        <Route path="/secrets" element={<Secrets />} />
       </Routes>
       <Toaster richColors position="top-center" />
     </>

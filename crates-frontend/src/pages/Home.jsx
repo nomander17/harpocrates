@@ -1,29 +1,15 @@
 import "./Home.css";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { API_URL } from "../config";
 import argon2 from "argon2-browser/dist/argon2-bundled.min.js";
-
-function uint8ArrayToHex(uint8Array) {
-  return Array.from(uint8Array)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function hexToUint8Array(hexString) {
-  if (hexString.length % 2 !== 0) {
-    throw "Invalid hexString";
-  }
-  const arrayBuffer = new Uint8Array(hexString.length / 2);
-  for (let i = 0; i < hexString.length; i += 2) {
-    const byteValue = parseInt(hexString.substr(i, 2), 16);
-    if (isNaN(byteValue)) {
-      throw "Invalid hexString";
-    }
-    arrayBuffer[i / 2] = byteValue;
-  }
-  return arrayBuffer;
-}
+import {
+  uint8ArrayToHex,
+  hexToUint8Array,
+  generateSalt,
+  generateHash,
+} from "../utils/crypto.js";
 
 const validatePasswordStrength = (password) => {
   if (!password || password.length < 8) {
@@ -59,6 +45,7 @@ const validatePasswordStrength = (password) => {
 };
 
 export default function Home() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     username: "",
     password: "",
@@ -106,7 +93,7 @@ export default function Home() {
       type: argon2.ArgonType.Argon2id,
       time: 3,
       mem: 65536,
-      hashLen: 28,
+      hashLen: 32,
       parallelism: 4,
     };
 
@@ -132,11 +119,6 @@ export default function Home() {
     const auth_salt = generateSalt(16);
     const encryption_salt = generateSalt(16);
     const auth_hash = await generateHash(password, auth_salt, argon2_params);
-    const encryption_hash = await generateHash(
-      password,
-      encryption_salt,
-      argon2_params,
-    );
 
     try {
       const res = await fetch(`${API_URL}/api/auth/signup`, {
@@ -147,7 +129,6 @@ export default function Home() {
         body: JSON.stringify({
           username: username,
           auth_hash: auth_hash,
-          encryption_hash: encryption_hash,
           auth_salt: uint8ArrayToHex(auth_salt),
           encryption_salt: uint8ArrayToHex(encryption_salt),
         }),
@@ -164,12 +145,6 @@ export default function Home() {
       console.log(err);
       toast.error("An error occurred during signup. Please try again.");
     }
-  }
-
-  function generateSalt(byteLength = 16) {
-    const array = new Uint8Array(byteLength);
-    crypto.getRandomValues(array);
-    return array;
   }
 
   const login = (e) => {
@@ -193,51 +168,46 @@ export default function Home() {
         console.log("Failed to fetch salts for user.");
         return;
       }
-      const { auth_salt, _encryption_salt, argon2_params } = await res.json();
+      const { auth_salt, encryption_salt, argon2_params } = await res.json();
 
       const auth_hash = await generateHash(
         password,
         hexToUint8Array(auth_salt),
         argon2_params,
       );
-      try {
-        const _res = await fetch(`${API_URL}/api/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: username,
-            password: auth_hash,
-          }),
-        });
-        // TODO
-        console.log("Login successful");
-      } catch (err) {
-        console.log(err);
-        toast.error("An error occurred during login. Please try again.");
+      
+      const loginRes = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          username: username,
+          auth_hash: auth_hash,
+        }),
+      });
+
+      if (loginRes.ok) {
+        toast.success("Login successful!");
+
+        const encryption_key = await generateHash(
+          password,
+          hexToUint8Array(encryption_salt),
+          argon2_params,
+        );
+        sessionStorage.setItem("encryption_key", encryption_key);
+
+        navigate("/secrets");
+      } else {
+        const error = await loginRes.json();
+        toast.error(error.message || "Login failed.");
       }
+
     } catch (err) {
       console.error(err);
       toast.error("Failed to connect to the server. Please try again later.");
     }
-  }
-
-  async function generateHash(password, salt, argon2_params) {
-    const hash = await argon2.hash({
-      pass: password,
-      salt: salt,
-      type: argon2_params.type,
-      time: argon2_params.time,
-      mem: argon2_params.mem,
-      hashLen: argon2_params.hashLen,
-      parallelism: argon2_params.parallelism,
-    });
-
-    console.log("Hash hex:", hash.hashHex);
-    console.log("Encoded:", hash.encoded);
-
-    return hash.hashHex;
   }
 
   const switchForm = (e, type) => {
@@ -246,8 +216,8 @@ export default function Home() {
   };
 
   return (
-    <div id="home">
-      <div id="main">
+    <div id="home-container">
+      <div id="home">
         <div id="header">
           <h1>Crates</h1>
         </div>
