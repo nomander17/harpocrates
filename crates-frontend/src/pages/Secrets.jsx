@@ -14,73 +14,80 @@ const Secrets = () => {
   const [notes, setNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchSecrets = useCallback(async () => {
-    setIsLoading(true);
-    const key = await getEncryptionKey();
-    if (!key) {
-      toast.error("Session expired or invalid. Please log in again.");
-      navigate("/");
-      return;
-    }
-
-    try {
-      // fetch all metadata
-      const metadataRes = await fetch(`${API_URL}/api/secrets/metadata`, {
-        credentials: "include",
-      });
-      if (!metadataRes.ok) {
-        if (metadataRes.status === 401) {
-          toast.error("Unauthorized. Please log in again.");
-          navigate("/");
-          return;
-        }
-        throw new Error("Failed to fetch secrets metadata");
+  const fetchSecrets = useCallback(
+    async (limit, offset) => {
+      setIsLoading(true);
+      const key = await getEncryptionKey();
+      if (!key) {
+        toast.error("Session expired or invalid. Please log in again.");
+        navigate("/");
+        return;
       }
-      const metadata = await metadataRes.json();
 
-      // fetch and decrypt full content for each note
-      const decryptedNotes = await Promise.all(
-        metadata.map(async (note) => {
-          try {
-            const title = await decryptText(
-              hexToUint8Array(note.title_encrypted),
-              hexToUint8Array(note.iv_title),
-              key
-            );
-
-            const noteRes = await fetch(`${API_URL}/api/secrets/${note.id}`, {
-              credentials: "include",
-            });
-            if (!noteRes.ok) throw new Error(`Failed to fetch note ${note.id}`);
-            const { body_encrypted, iv_body } = await noteRes.json();
-
-            const content = await decryptText(
-              hexToUint8Array(body_encrypted),
-              hexToUint8Array(iv_body),
-              key
-            );
-
-            return { ...note, title, content };
-          } catch (err) {
-            console.error(`Failed to process note ${note.id}:`, err);
-            // return a note with an error message
-            return {
-              ...note,
-              title: "Error",
-              content: "Could not decrypt this note.",
-            };
+      try {
+        // fetch metadata
+        const metadataRes = await fetch(
+          `${API_URL}/api/secrets/metadata?limit=${limit}&offset=${offset}`,
+          {
+            credentials: "include",
           }
-        })
-      );
+        );
+        if (!metadataRes.ok) {
+          if (metadataRes.status === 401) {
+            toast.error("Unauthorized. Please log in again.");
+            navigate("/");
+            return;
+          }
+          throw new Error("Failed to fetch secrets metadata");
+        }
+        const metadata = await metadataRes.json();
 
-      setNotes(decryptedNotes);
-    } catch (error) {
-      console.error(error);
-      toast.error("Could not load your secrets.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
+        // fetch and decrypt full content for each note
+        const decryptedNotes = await Promise.all(
+          metadata.map(async (note) => {
+            try {
+              const title = await decryptText(
+                hexToUint8Array(note.title_encrypted),
+                hexToUint8Array(note.iv_title),
+                key
+              );
+
+              const noteRes = await fetch(`${API_URL}/api/secrets/${note.id}`, {
+                credentials: "include",
+              });
+              if (!noteRes.ok)
+                throw new Error(`Failed to fetch note ${note.id}`);
+              const { body_encrypted, iv_body } = await noteRes.json();
+
+              const content = await decryptText(
+                hexToUint8Array(body_encrypted),
+                hexToUint8Array(iv_body),
+                key
+              );
+
+              return { ...note, title, content };
+            } catch (err) {
+              console.error(`Failed to process note ${note.id}:`, err);
+              // return a note with an error message
+              return {
+                ...note,
+                title: "Error",
+                content: "Could not decrypt this note.",
+              };
+            }
+          })
+        );
+
+        setNotes(decryptedNotes);
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not load your secrets.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [navigate]
+  );
 
   useEffect(() => {
     fetchSecrets();
