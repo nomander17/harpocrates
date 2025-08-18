@@ -11,6 +11,7 @@ import {
   decryptText,
   encryptText,
 } from "../utils/crypto.js";
+import ThemeSwitcher from "../components/ThemeSwitcher";
 
 const Secrets = () => {
   const navigate = useNavigate();
@@ -376,9 +377,12 @@ const Secrets = () => {
     <div id="app-container">
       <div id="header">
         <h1>Crates</h1>
-        <button onClick={handleLogout} className="logout-button">
-          Logout
-        </button>
+        <div className="header-actions">
+          <ThemeSwitcher />
+          <button onClick={handleLogout} className="logout-button">
+            Logout
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
