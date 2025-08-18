@@ -21,6 +21,7 @@
     justify-content: center;
     align-items: center;
     margin: 20px;
+    color: var(--text-primary);
 }
 
 .form-container {
@@ -41,18 +42,34 @@
 .input-field {
     padding: 10px;
     margin-bottom: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
     border-radius: 10px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.input-field::placeholder {
+    color: var(--text-muted);
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: var(--accent-color);
 }
 
 .button {
     width: 100%;
     padding: 10px;
-    background-color: #000;
-    color: #fff;
+    background-color: var(--accent-color);
+    color: var(--bg-primary);
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.button:hover {
+    background-color: var(--accent-hover);
 }
 
 .text-center {

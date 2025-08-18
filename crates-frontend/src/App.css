@@ -1,3 +1,20 @@
+:root {
+  --bg-primary: #1d1f21;
+  --bg-secondary: #282a2e;
+  --bg-tertiary: #373b41;
+
+  --text-primary: #c5c8c6;
+  --text-secondary: #969896;
+  --text-muted: #707880;
+
+  --border-color: #242528;
+  --accent-color: #81a2be;
+  --accent-hover: #a3c1d9;
+
+  --danger-color: #cc6666;
+  --danger-hover: #d98888;
+}
+
 * {
   padding: 0;
   margin: 0;
@@ -7,4 +24,6 @@
 #root {
   width: 100vw;
   height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }

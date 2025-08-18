@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { Fish, X } from "lucide-react";
 import { toast } from "sonner";
 import { API_URL } from "../config";
+import "./../App.css";
 import "./Secrets.css";
 import {
   hexToUint8Array,
@@ -50,7 +52,7 @@ const Secrets = () => {
             credentials: "include",
           }
         );
-        
+
         if (!metadataRes.ok) {
           if (metadataRes.status === 401) {
             toast.error("Unauthorized. Please log in again.");
@@ -59,9 +61,9 @@ const Secrets = () => {
           }
           throw new Error("Failed to fetch secrets metadata");
         }
-        
+
         const metadata = await metadataRes.json();
-        
+
         if (metadata.length < LIMIT) {
           setHasMore(false);
         }
@@ -84,7 +86,10 @@ const Secrets = () => {
                 isDecrypting: false,
               };
             } catch (err) {
-              console.error(`Failed to decrypt title for note ${note.id}:`, err);
+              console.error(
+                `Failed to decrypt title for note ${note.id}:`,
+                err
+              );
               return {
                 ...note,
                 title: "Error decrypting title",
@@ -97,11 +102,11 @@ const Secrets = () => {
         );
 
         if (append) {
-          setNotes(prev => [...prev, ...notesWithTitles]);
+          setNotes((prev) => [...prev, ...notesWithTitles]);
         } else {
           setNotes(notesWithTitles);
         }
-        
+
         setOffset(currentOffset + LIMIT);
       } catch (error) {
         console.error(error);
@@ -122,11 +127,9 @@ const Secrets = () => {
     if (!key) return;
 
     // Mark as decrypting
-    setNotes(prev => 
-      prev.map(note => 
-        note.id === noteId 
-          ? { ...note, isDecrypting: true }
-          : note
+    setNotes((prev) =>
+      prev.map((note) =>
+        note.id === noteId ? { ...note, isDecrypting: true } : note
       )
     );
 
@@ -134,36 +137,41 @@ const Secrets = () => {
       const noteRes = await fetch(`${API_URL}/api/secrets/${noteId}`, {
         credentials: "include",
       });
-      
+
       if (!noteRes.ok) {
         throw new Error(`Failed to fetch note ${noteId}`);
       }
-      
+
       const { body_encrypted, iv_body } = await noteRes.json();
-      
+
       const content = await decryptText(
         hexToUint8Array(body_encrypted),
         hexToUint8Array(iv_body),
         key
       );
 
-      setNotes(prev =>
-        prev.map(note =>
+      setNotes((prev) =>
+        prev.map((note) =>
           note.id === noteId
-            ? { ...note, content, isContentDecrypted: true, isDecrypting: false }
+            ? {
+                ...note,
+                content,
+                isContentDecrypted: true,
+                isDecrypting: false,
+              }
             : note
         )
       );
     } catch (err) {
       console.error(`Failed to decrypt content for note ${noteId}:`, err);
-      setNotes(prev =>
-        prev.map(note =>
+      setNotes((prev) =>
+        prev.map((note) =>
           note.id === noteId
-            ? { 
-                ...note, 
-                content: "Error decrypting content", 
+            ? {
+                ...note,
+                content: "Error decrypting content",
                 isContentDecrypted: true,
-                isDecrypting: false 
+                isDecrypting: false,
               }
             : note
         )
@@ -178,8 +186,8 @@ const Secrets = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const noteId = entry.target.dataset.noteId;
-            const note = notes.find(n => n.id === noteId);
-            
+            const note = notes.find((n) => n.id === noteId);
+
             if (note && !note.isContentDecrypted && !note.isDecrypting) {
               decryptNoteContent(noteId);
             }
@@ -202,7 +210,12 @@ const Secrets = () => {
   useEffect(() => {
     const loadMoreObserver = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !isLoadingMore &&
+          !isLoading
+        ) {
           fetchSecrets(offset, true);
         }
       },
@@ -218,8 +231,8 @@ const Secrets = () => {
 
   // Observe notes when they're added to DOM
   useEffect(() => {
-    const noteElements = document.querySelectorAll('.note[data-note-id]');
-    noteElements.forEach(element => {
+    const noteElements = document.querySelectorAll(".note-card[data-note-id]");
+    noteElements.forEach((element) => {
       if (observerRef.current) {
         observerRef.current.observe(element);
       }
@@ -227,7 +240,7 @@ const Secrets = () => {
 
     return () => {
       if (observerRef.current) {
-        noteElements.forEach(element => {
+        noteElements.forEach((element) => {
           observerRef.current.unobserve(element);
         });
       }
@@ -272,7 +285,7 @@ const Secrets = () => {
       }
 
       const result = await response.json();
-      
+
       // Add the new note to the beginning of the list
       const newNoteObj = {
         id: result.id,
@@ -282,8 +295,8 @@ const Secrets = () => {
         isDecrypting: false,
         created_at: new Date().toISOString(),
       };
-      
-      setNotes(prev => [newNoteObj, ...prev]);
+
+      setNotes((prev) => [newNoteObj, ...prev]);
       setShowModal(false);
       setNewNote({ title: "", content: "" });
       toast.success("Note created successfully!");
@@ -384,9 +397,9 @@ const Secrets = () => {
             <>
               <div className="notes-grid">
                 {notes.map((note) => (
-                  <div 
-                    key={note.id} 
-                    className="note-card" 
+                  <div
+                    key={note.id}
+                    className="note-card"
                     data-note-id={note.id}
                   >
                     <div className="note-title">{note.title}</div>
@@ -407,13 +420,10 @@ const Secrets = () => {
                   </div>
                 ))}
               </div>
-              
+
               {/* Load more trigger */}
               {hasMore && (
-                <div 
-                  ref={loadMoreTriggerRef} 
-                  className="load-more-trigger"
-                >
+                <div ref={loadMoreTriggerRef} className="load-more-trigger">
                   {isLoadingMore && (
                     <div className="loading-more">
                       <div className="mini-spinner"></div>
@@ -422,11 +432,13 @@ const Secrets = () => {
                   )}
                 </div>
               )}
-              
+
               {/* End of content indicator */}
               {!hasMore && notes.length > 0 && (
                 <div className="end-indicator">
-                  <div className="end-icon">📋</div>
+                  <div className="end-icon">
+                    <Fish />
+                  </div>
                   <span>You've reached the end!</span>
                 </div>
               )}
@@ -436,7 +448,7 @@ const Secrets = () => {
       )}
 
       {/* Floating Add Button */}
-      <button 
+      <button
         className="add-button"
         onClick={openModal}
         title="Create new secret"
@@ -446,40 +458,42 @@ const Secrets = () => {
 
       {/* Create Note Modal */}
       {showModal && (
-        <div 
-          className="modal-backdrop" 
+        <div
+          className="modal-backdrop"
           ref={modalRef}
           onClick={handleModalBackdropClick}
         >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div></div>
-              <button 
-                className="discard-button" 
+              <input
+                ref={titleInputRef}
+                className="modal-title-input"
+                placeholder="Title"
+                value={newNote.title}
+                onChange={(e) =>
+                  setNewNote((prev) => ({ ...prev, title: e.target.value }))
+                }
+                disabled={isSaving}
+              />
+              <button
+                className="discard-button"
                 onClick={discardNote}
                 title="Discard note"
               >
-                🗑️
+                <X />
               </button>
             </div>
-            
-            <input
-              ref={titleInputRef}
-              className="modal-title-input"
-              placeholder="Title"
-              value={newNote.title}
-              onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
-              disabled={isSaving}
-            />
-            
+
             <textarea
               className="modal-content-textarea"
               placeholder="Take a note..."
               value={newNote.content}
-              onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
+              onChange={(e) =>
+                setNewNote((prev) => ({ ...prev, content: e.target.value }))
+              }
               disabled={isSaving}
             />
-            
+
             {isSaving && (
               <div className="saving-indicator">
                 <div className="mini-spinner"></div>
